@@ -360,10 +360,12 @@ app.get('/leaderboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'leaderboard.html'));
 });
 
-// Temporary endpoint for manual update of all athletes
 app.get('/updateAllAthletes', async (req, res) => {
   try {
-    const athletes = db.prepare('SELECT id FROM athletes').all();
+    // Query all athletes using the PostgreSQL pool
+    const athletesRes = await pool.query('SELECT id FROM athletes');
+    const athletes = athletesRes.rows;
+    
     for (const athlete of athletes) {
       try {
         await updateAthleteScore(athlete.id);
@@ -379,6 +381,7 @@ app.get('/updateAllAthletes', async (req, res) => {
   }
 });
 
+
 // ====================================
 // 11) START THE SERVER
 // ====================================
@@ -387,14 +390,14 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-
-
 // Schedule the job to run every hour (at minute 0)
 cron.schedule('0 * * * *', async () => {
   console.log('Cron job started: updating all athletes scores...');
   try {
-    // Get all athletes from the database
-    const athletes = db.prepare('SELECT id FROM athletes').all();
+    // Query all athletes using the PostgreSQL pool
+    const athletesRes = await pool.query('SELECT id FROM athletes');
+    const athletes = athletesRes.rows;
+    
     for (const athlete of athletes) {
       try {
         await updateAthleteScore(athlete.id);
