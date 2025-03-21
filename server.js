@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
 const axios = require('axios');
 const path = require('path');
 const { Pool } = require('pg');
@@ -61,11 +62,18 @@ async function initDB() {
 
 initDB();
 
-// Session setup.
 app.use(session({
-  secret: 'your_session_secret', // Replace with a strong secret in production
+  store: new PgSession({
+    pool: pool,                // Connection pool
+    tableName: 'session',      // Use another table-name if you prefer
+  }),
+  secret: process.env.SESSION_SECRET, // Replace with a strong secret in production
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 30 * 24 * 60 * 60 * 1000, // Session expires after 30 days (adjust as needed)
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+  }
 }));
 
 // Serve static files.
@@ -74,7 +82,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // STRAVA OAuth credentials.
 const CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
-const REDIRECT_URI = process.env.STRAVA_REDIRECT_URI || 'http://localhost:3000/auth/strava/callback';
+const REDIRECT_URI = process.env.STRAVA_REDIRECT_URI || 'https://c21aa72d98b2.ngrok.app/auth/strava/callback';
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
