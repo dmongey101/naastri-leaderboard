@@ -318,30 +318,56 @@ app.get('/api/team/:teamName', async (req, res) => {
 // (C) Team leaderboard: Retrieve all teams from team_assignments, group them, and show how many are left to connect per team.
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    // Total assigned per team.
+    const week = req.query.week; // If provided, filter by week exactly
+
+    // Get total assigned athletes per team from team_assignments
     const teamTotalsRes = await pool.query(`
       SELECT team_name, COUNT(*) AS total_assigned
       FROM team_assignments
       GROUP BY team_name
     `);
-    // Aggregated connected athletes per team.
-    const connectedRes = await pool.query(`
-      SELECT a.team AS team,
-             COUNT(DISTINCT s.athlete_id) AS total_connected,
-             ROUND(SUM(s.swim), 2) AS swim,
-             ROUND(SUM(s.bike), 2) AS bike,
-             ROUND(SUM(s.run), 2) AS run,
-             ROUND(SUM(s.total), 2) AS total
-      FROM athlete_scores s
-      JOIN athletes a ON s.athlete_id = a.id
-      GROUP BY a.team
-    `);
     const teamTotals = teamTotalsRes.rows;
+
+    // Prepare query for connected athletes.
+    let connectedQuery = '';
+    let params = [];
+    if (week) {
+      connectedQuery = `
+        SELECT a.team AS team,
+               COUNT(DISTINCT s.athlete_id) AS total_connected,
+               ROUND(SUM(s.swim), 2) AS swim,
+               ROUND(SUM(s.bike), 2) AS bike,
+               ROUND(SUM(s.run), 2) AS run,
+               ROUND(SUM(s.total), 2) AS total
+        FROM athlete_scores s
+        JOIN athletes a ON s.athlete_id = a.id
+        WHERE s.week = $1
+        GROUP BY a.team
+      `;
+      params = [week];
+    } else {
+      connectedQuery = `
+        SELECT a.team AS team,
+               COUNT(DISTINCT s.athlete_id) AS total_connected,
+               ROUND(SUM(s.swim), 2) AS swim,
+               ROUND(SUM(s.bike), 2) AS bike,
+               ROUND(SUM(s.run), 2) AS run,
+               ROUND(SUM(s.total), 2) AS total
+        FROM athlete_scores s
+        JOIN athletes a ON s.athlete_id = a.id
+        GROUP BY a.team
+      `;
+    }
+    const connectedRes = await pool.query(connectedQuery, params);
     const connected = connectedRes.rows;
+
+    // Map connected results by team name for quick lookup.
     const connectedMap = {};
     connected.forEach(row => {
       connectedMap[row.team] = row;
     });
+
+    // Build the leaderboard array by combining teamTotals with connected data.
     const leaderboard = teamTotals.map(tt => {
       const teamName = tt.team_name;
       const connectedData = connectedMap[teamName] || { total_connected: 0, swim: 0, bike: 0, run: 0, total: 0 };
@@ -355,14 +381,17 @@ app.get('/api/leaderboard', async (req, res) => {
         left_to_connect: leftToConnect
       };
     });
-    // Sort leaderboard highest to lowest by total.
+
+    // Order the leaderboard from highest total to lowest.
     leaderboard.sort((a, b) => parseFloat(b.total) - parseFloat(a.total));
+
     res.json({ leaderboard });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error retrieving leaderboard.');
   }
 });
+
 
 // ====================================
 // 10) SERVE THE LEADERBOARD HTML PAGE

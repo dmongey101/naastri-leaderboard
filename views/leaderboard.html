@@ -7,50 +7,10 @@
   <title>Leaderboard</title>
   <link rel="stylesheet" href="/styles.css">
   <style>
-    /* Base styles */
-    body, html {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
     .container {
       max-width: 900px;
       margin: 0 auto;
       padding: 10px;
-      text-align: center;
-    }
-     /* Header style for the top-left logo */
-     .header {
-      
-      align-items: center;
-      justify-content: flex-start;
-      margin-bottom: 10px;
-    }
-    .header img {
-      width: 80px; /* Adjust as needed */
-      margin-right: 20px;
-    }
-    .header h1 {
-      font-size: 1.5em;
-      margin: 0;
-    }
-    h1, h2 {
-      margin: 10px 0;
-      font-size: 1.5em;
-    }
-    table {
-      margin: 10px auto;
-      border-collapse: collapse;
-      width: 100%;
-      overflow-x: auto;
-      display: block;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-    }
-    th, td {
-      padding: 8px;
-      font-size: 0.9em;
       text-align: center;
     }
     .tabs {
@@ -73,17 +33,22 @@
       background: #bbb;
       font-weight: bold;
     }
-    footer img {
-      width: 150px;
-      max-width: 80%;
-      margin-top: 20px;
+    table {
+      margin: 10px auto;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
     }
-    
-    /* Mobile responsive styles */
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      font-size: 0.9em;
+      text-align: center;
+    }
     @media (max-width: 600px) {
-      h1, h2 {
-        font-size: 1.2em;
-      }
       th, td {
         font-size: 0.8em;
         padding: 6px;
@@ -97,9 +62,6 @@
 </head>
 <body>
   <div class="container" id="content">
-    <div class="header">
-      <img src="/images/naas_tri.jpeg" alt="Naas Tri Logo">
-    </div>
     <!-- Personal Weekly Totals Section -->
     <div id="personal-section">
       <h1>Your Weekly Totals</h1>
@@ -121,6 +83,7 @@
 
     <!-- Team Leaderboard Section (Always shown) -->
     <h1>Team Leaderboard</h1>
+    <!-- Updated Tabs with exact week values -->
     <div class="tabs">
       <div class="tab" data-week="Week 1 (10-16 March 2025)">Week 1</div>
       <div class="tab" data-week="Week 2 (17-23 March 2025)">Week 2</div>
@@ -182,7 +145,6 @@
         })
         .catch(error => {
           if (error.message === 'Unauthorized') {
-            // Replace the personal section with a Connect with Strava button.
             document.getElementById('personal-section').innerHTML = `
               <h2>Please sign in to see your weekly totals</h2>
               <a href="/auth/strava">
@@ -226,9 +188,7 @@
     const tabs = document.querySelectorAll('.tab');
     tabs.forEach(tab => {
       tab.addEventListener('click', function() {
-        // Remove active class from all tabs.
         tabs.forEach(t => t.classList.remove('active'));
-        // Set active class on clicked tab.
         this.classList.add('active');
         const week = this.getAttribute('data-week');
         loadLeaderboard(week);
