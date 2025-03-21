@@ -79,10 +79,12 @@ app.use(session({
 // Serve static files.
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.set('trust proxy', 1);
+
 // STRAVA OAuth credentials.
 const CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
-const REDIRECT_URI = process.env.STRAVA_REDIRECT_URI || 'https://c21aa72d98b2.ngrok.app/auth/strava/callback';
+const REDIRECT_URI = process.env.STRAVA_REDIRECT_URI || 'http://localhost:3000/auth/strava/callback';
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
@@ -138,6 +140,7 @@ app.get('/auth/strava/callback', async (req, res) => {
         [access_token, refresh_token, expires_at, athleteId]
       );
     }
+
 
     // Set session.
     req.session.access_token = access_token;
