@@ -15,6 +15,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+
 // Initialize the database schema.
 async function initDB() {
   try {
@@ -211,7 +212,7 @@ async function updateAthleteScore(athleteId) {
           const hours = activity.moving_time / 3600;
           if (activity.type === 'Swim') {
             swimHours += hours;
-          } else if (activity.type === 'Ride' || activity.type === 'Virtual Ride') {
+          } else if (activity.type === 'Ride' || activity.type === 'VirtualRide') {
             bikeHours += hours;
           } else if (activity.type === 'Run') {
             runHours += hours;
