@@ -5,6 +5,7 @@ const session = require('express-session');
 const axios = require('axios');
 const path = require('path');
 const { Pool } = require('pg');
+const cron = require('node-cron');
 
 const app = express();
 
@@ -359,10 +360,51 @@ app.get('/leaderboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'leaderboard.html'));
 });
 
+// Temporary endpoint for manual update of all athletes
+app.get('/updateAllAthletes', async (req, res) => {
+  try {
+    const athletes = db.prepare('SELECT id FROM athletes').all();
+    for (const athlete of athletes) {
+      try {
+        await updateAthleteScore(athlete.id);
+        console.log(`Updated athlete ${athlete.id}`);
+      } catch (err) {
+        console.error(`Error updating athlete ${athlete.id}:`, err);
+      }
+    }
+    res.send('All athletes updated successfully.');
+  } catch (err) {
+    console.error('Error during manual update:', err);
+    res.status(500).send('Error updating athletes.');
+  }
+});
+
 // ====================================
 // 11) START THE SERVER
 // ====================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+
+
+// Schedule the job to run every hour (at minute 0)
+cron.schedule('0 * * * *', async () => {
+  console.log('Cron job started: updating all athletes scores...');
+  try {
+    // Get all athletes from the database
+    const athletes = db.prepare('SELECT id FROM athletes').all();
+    for (const athlete of athletes) {
+      try {
+        await updateAthleteScore(athlete.id);
+        console.log(`Updated athlete ${athlete.id}`);
+      } catch (err) {
+        console.error(`Error updating athlete ${athlete.id}:`, err);
+      }
+    }
+    console.log('Cron job finished: all athletes updated.');
+  } catch (err) {
+    console.error('Error in cron job:', err);
+  }
 });
