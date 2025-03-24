@@ -14,7 +14,7 @@ const app = express();
 // For production on Render, you might need to enable SSL.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : { rejectUnauthorized: false },
 });
 
 
@@ -104,6 +104,7 @@ app.get('/auth/strava/callback', async (req, res) => {
     return res.status(400).send('No code provided from Strava.');
   }
   try {
+    // Exchange the code for tokens.
     const tokenResponse = await axios.post('https://www.strava.com/api/v3/oauth/token', {
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
@@ -124,7 +125,22 @@ app.get('/auth/strava/callback', async (req, res) => {
     }
     const teamName = assignmentRes.rows[0].team_name;
 
-    // Upsert athlete.
+    // Test the token by calling a Strava endpoint that requires the proper permissions.
+    // If the user did not grant all required permissions, this call should return an error.
+    try {
+      await axios.get('https://www.strava.com/api/v3/athlete/activities?per_page=1', {
+        headers: { Authorization: `Bearer ${access_token}` }
+      });
+    } catch (err) {
+      // If the error indicates missing permissions, do not create session or DB rows.
+      if (err.response && err.response.data && err.response.data.message === 'Authorization Error') {
+        return res.redirect('/leaderboard?error=auth-error');
+      }
+      // For any other error, rethrow it.
+      throw err;
+    }
+
+    // Upsert athlete in the database.
     const existingRes = await pool.query(`SELECT * FROM athletes WHERE id = $1`, [athleteId]);
     if (existingRes.rowCount === 0) {
       await pool.query(
@@ -141,8 +157,7 @@ app.get('/auth/strava/callback', async (req, res) => {
       );
     }
 
-
-    // Set session.
+    // Set session data.
     req.session.access_token = access_token;
     req.session.athlete = athlete;
     res.redirect('/leaderboard');
@@ -151,6 +166,7 @@ app.get('/auth/strava/callback', async (req, res) => {
     res.status(500).send('Authentication failed. Please try again.');
   }
 });
+
 
 // Helper: Refresh token for an athlete using the DB.
 async function refreshAthleteTokenDB(athlete) {
@@ -431,7 +447,7 @@ app.listen(PORT, () => {
 });
 
 // Schedule the job to run every hour (at minute 0)
-cron.schedule('0 * * * *', async () => {
+cron.schedule('0 8-21 * * *', async () => {
   console.log('Cron job started: updating all athletes scores...');
   try {
     // Query all athletes using the PostgreSQL pool

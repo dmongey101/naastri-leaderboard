@@ -33,6 +33,10 @@
       background: #bbb;
       font-weight: bold;
     }
+    .header img {
+      width: 80px; /* adjust size as needed */
+      margin-right: 20px;
+    }
     table {
       margin: 10px auto;
       border-collapse: collapse;
@@ -63,6 +67,10 @@
 <body>
   <div class="container" id="content">
     <!-- Personal Weekly Totals Section -->
+    <div class="header">
+      <img src="/images/naas_tri.jpeg" alt="Naas Tri Logo">
+    </div>
+    
     <div id="personal-section">
       <h1>Your Weekly Totals</h1>
       <table id="weekly-totals-table">
@@ -113,10 +121,28 @@
   </div>
 
   <script>
+
+     // Helper function: Convert a decimal hour value to H:MM format.
+      function convertDecimalToHoursMinutes(decimalHours) {
+        const hours = Math.floor(decimalHours);
+        const minutes = Math.round((decimalHours - hours) * 60);
+        return `${hours}:${minutes < 10 ? '0' + minutes : minutes}`;
+      }
+
+    // Function to display the error message with the Connect with Strava button.
+    function displayAuthError() {
+      document.getElementById('personal-section').innerHTML = `
+        <h2>You have not given Naas Tri Club the required permissions to log your hours. Please connect with Strava again and tick all the boxes.</h2>
+        <a href="/auth/strava">
+          <img src="/images/connect-with-strava.png" alt="Connect with Strava" style="width:200px;">
+        </a>
+      `;
+    }
+  
     // Function to load personal weekly totals.
     function loadPersonalTotals() {
       fetch('/api/weekly-totals')
-        .then(response => {
+        .then(async response => {
           if (response.status === 401) {
             throw new Error('Unauthorized');
           }
@@ -134,29 +160,39 @@
               const tr = document.createElement('tr');
               tr.innerHTML = `
                 <td>${week.week}</td>
-                <td>${parseFloat(week.swim).toFixed(2)}</td>
-                <td>${parseFloat(week.bike).toFixed(2)}</td>
-                <td>${parseFloat(week.run).toFixed(2)}</td>
-                <td>${parseFloat(week.total).toFixed(2)}</td>
+                <td>${convertDecimalToHoursMinutes(parseFloat(week.swim))}</td>
+                <td>${convertDecimalToHoursMinutes(parseFloat(week.bike))}</td>
+                <td>${convertDecimalToHoursMinutes(parseFloat(week.run))}</td>
+                <td>${convertDecimalToHoursMinutes(parseFloat(week.total))}</td>
               `;
               tbody.appendChild(tr);
             });
           }
         })
         .catch(error => {
+          console.error('Error fetching personal weekly totals:', error);
           if (error.message === 'Unauthorized') {
+            // If unauthorized, display the Connect with Strava button.
             document.getElementById('personal-section').innerHTML = `
               <h2>Please sign in to see your weekly totals</h2>
               <a href="/auth/strava">
                 <img src="/images/connect-with-strava.png" alt="Connect with Strava" style="width:200px;">
               </a>
             `;
-          } else {
-            console.error('Error fetching personal weekly totals:', error);
           }
         });
     }
-
+  
+    // Check for the error query parameter.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'auth-error') {
+      // If there is an auth error, display the error message.
+      displayAuthError();
+    } else {
+      // Otherwise, load the personal weekly totals.
+      loadPersonalTotals();
+    }
+  
     // Function to load the team leaderboard for a given week.
     function loadLeaderboard(week) {
       let url = '/api/leaderboard';
@@ -171,20 +207,20 @@
           data.leaderboard.forEach(team => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${team.team}</td>
-              <td>${team.swim}</td>
-              <td>${team.bike}</td>
-              <td>${team.run}</td>
-              <td>${team.total}</td>
-              <td>${team.left_to_connect}</td>
-            `;
+            <td>${team.team}</td>
+            <td>${convertDecimalToHoursMinutes(parseFloat(team.swim))}</td>
+            <td>${convertDecimalToHoursMinutes(parseFloat(team.bike))}</td>
+            <td>${convertDecimalToHoursMinutes(parseFloat(team.run))}</td>
+            <td>${convertDecimalToHoursMinutes(parseFloat(team.total))}</td>
+            <td>${team.left_to_connect}</td>
+          `;
             tbody.appendChild(tr);
           });
         })
         .catch(error => console.error('Error fetching team leaderboard:', error));
     }
-
-    // Tab click event handling.
+  
+    // Tab click event handling for the team leaderboard.
     const tabs = document.querySelectorAll('.tab');
     tabs.forEach(tab => {
       tab.addEventListener('click', function() {
@@ -194,10 +230,10 @@
         loadLeaderboard(week);
       });
     });
-
-    // Initialize: load personal totals and default team leaderboard ("Total").
-    loadPersonalTotals();
+  
+    // Initialize: load the default team leaderboard ("Total").
     document.querySelector('.tab[data-week=""]').click();
   </script>
+  
 </body>
 </html>
